@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { CheckCircle2, Users, TrendingUp, Target, Zap, Shield } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { Logo } from "@/components/Logo";
 
 const Landing = () => {
   return (
@@ -10,12 +11,7 @@ const Landing = () => {
       {/* Header */}
       <header className="glass-navbar sticky top-0 z-50">
         <div className="container px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="h-10 w-10 rounded-xl gradient-primary flex items-center justify-center">
-              <Target className="h-6 w-6 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold">HabitLink</h1>
-          </div>
+          <Logo size="lg" />
           <div className="flex items-center gap-3">
             <ThemeToggle />
             <Link to="/auth">
@@ -154,11 +150,8 @@ const Landing = () => {
         <div className="container px-4 py-12">
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center">
-                  <Target className="h-5 w-5 text-white" />
-                </div>
-                <h4 className="font-bold text-lg">HabitLink</h4>
+              <div className="mb-4">
+                <Logo size="md" linkTo="/" />
               </div>
               <p className="text-sm text-muted-foreground">
                 Building better habits together, one day at a time.

@@ -1,7 +1,10 @@
 import { Response } from 'express';
 import Habit from '../models/Habit';
 import HabitEntry from '../models/HabitEntry';
+import User from '../models/User';
+import TeamMember from '../models/TeamMember';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
+import { getIO } from '../config/socket';
 
 // Get all habits for authenticated user
 export const getHabits = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -56,7 +59,7 @@ export const getHabit = async (req: AuthenticatedRequest, res: Response): Promis
 export const createHabit = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
-    const { title, description, frequency, teamId, color } = req.body;
+    const { title, description, frequency, teamId, color, reminderTime } = req.body;
     
     const habit = await Habit.create({
       userId,
@@ -65,6 +68,7 @@ export const createHabit = async (req: AuthenticatedRequest, res: Response): Pro
       frequency: frequency || 'daily',
       teamId: teamId || undefined,
       color,
+      reminderTime: reminderTime || undefined,
     });
     
     res.status(201).json({
@@ -91,11 +95,11 @@ export const updateHabit = async (req: AuthenticatedRequest, res: Response): Pro
   try {
     const userId = req.user?.id;
     const { id } = req.params;
-    const { title, description, frequency, color } = req.body;
+    const { title, description, frequency, color, reminderTime } = req.body;
     
     const habit = await Habit.findOneAndUpdate(
       { _id: id, userId },
-      { title, description, frequency, color },
+      { title, description, frequency, color, reminderTime },
       { new: true, runValidators: true }
     );
     
@@ -158,14 +162,39 @@ export const completeHabit = async (req: AuthenticatedRequest, res: Response): P
     const { habitId } = req.params;
     const { notes } = req.body;
     
-    // Verify habit belongs to user
-    const habit = await Habit.findOne({ _id: habitId, userId });
+    // Verify habit exists and user has access (either owner or team member)
+    const habit = await Habit.findById(habitId);
     if (!habit) {
       res.status(404).json({
         success: false,
         error: 'Habit not found',
       });
       return;
+    }
+
+    // Check if user owns the habit or is a member of the team
+    if (habit.userId.toString() !== userId) {
+      if (habit.teamId) {
+        // Check if user is a member of the team
+        const membership = await TeamMember.findOne({
+          teamId: habit.teamId,
+          userId,
+          status: 'active',
+        });
+        if (!membership) {
+          res.status(403).json({
+            success: false,
+            error: 'You do not have access to this habit',
+          });
+          return;
+        }
+      } else {
+        res.status(403).json({
+          success: false,
+          error: 'You do not have access to this habit',
+        });
+        return;
+      }
     }
     
     // Create entry for today
@@ -196,6 +225,47 @@ export const completeHabit = async (req: AuthenticatedRequest, res: Response): P
       completedAt: today,
       notes,
     });
+
+    // Get user info for socket emission
+    const user = await User.findById(userId).select('name email');
+
+    // Emit real-time event to user's personal room
+    const io = getIO();
+    io.to(`user:${userId}`).emit('habit_completed', {
+      habitId: habit?._id,
+      habitTitle: habit?.title,
+      userId,
+      userName: user?.name,
+      completedAt: entry.completedAt,
+    });
+
+    // If it's a team habit, emit to team room
+    if (habit?.teamId) {
+      const teamId = habit.teamId.toString();
+      
+      // Get team members to notify
+      const teamMembers = await TeamMember.find({ 
+        teamId: habit.teamId, 
+        status: 'active' 
+      }).select('userId');
+      
+      const memberIds = teamMembers.map(tm => tm.userId.toString());
+      
+      // Emit to team room
+      io.to(`team:${teamId}`).emit('update_feed', {
+        id: entry._id,
+        userName: user?.name || 'Unknown User',
+        habitTitle: habit.title,
+        timestamp: 'Just now',
+        habitId: habit._id,
+        userId,
+      });
+
+      // Emit leaderboard update to team
+      io.to(`team:${teamId}`).emit('team_leaderboard_update', {
+        teamId,
+      });
+    }
     
     // TODO: Update user stats and check for streaks
     // This would be handled by a service

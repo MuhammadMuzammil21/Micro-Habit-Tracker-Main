@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authService, SignUpData, SignInData } from '@/services/auth.service';
+import { initializeSocket, disconnectSocket } from '@/lib/socket';
 
 interface AuthContextType {
   user: any | null;
@@ -23,30 +24,50 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         try {
           const userData = await authService.getCurrentUser();
           setUser(userData);
+          // Initialize Socket.io connection
+          initializeSocket(token);
         } catch (error) {
           // Token invalid, clear storage
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
+          disconnectSocket();
         }
       }
       setLoading(false);
     };
     checkAuth();
+
+    // Cleanup on unmount
+    return () => {
+      disconnectSocket();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
     const data = await authService.signIn({ email, password });
     setUser(data.user);
+    // Initialize Socket.io after login
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      initializeSocket(token);
+    }
   };
 
   const signUp = async (email: string, password: string, name: string) => {
     const data = await authService.signUp({ email, password, name });
     setUser(data.user);
+    // Initialize Socket.io after signup
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      initializeSocket(token);
+    }
   };
 
   const signOut = async () => {
     await authService.signOut();
     setUser(null);
+    // Disconnect Socket.io on logout
+    disconnectSocket();
   };
 
   return (

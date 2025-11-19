@@ -6,6 +6,7 @@ import {
   signOut,
   refreshToken,
   getCurrentUser,
+  updateProfile,
 } from '../controllers/auth.controller';
 import { authenticate } from '../middleware/auth.middleware';
 
@@ -29,6 +30,7 @@ router.post('/signin', signInValidation, signIn);
 router.post('/signout', authenticate, signOut);
 router.post('/refresh', refreshToken);
 router.get('/me', authenticate, getCurrentUser);
+router.put('/profile', authenticate, updateProfile);
 
 export default router;
 

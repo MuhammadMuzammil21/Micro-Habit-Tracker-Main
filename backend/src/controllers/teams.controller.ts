@@ -1,8 +1,11 @@
 import { Response } from 'express';
+import crypto from 'crypto';
 import Team from '../models/Team';
 import TeamMember from '../models/TeamMember';
 import Habit from '../models/Habit';
+import User from '../models/User';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
+import { sendTeamInvite } from '../services/email.service';
 
 // Get all teams for authenticated user
 export const getTeams = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -371,6 +374,164 @@ export const leaveTeam = async (req: AuthenticatedRequest, res: Response): Promi
     res.status(500).json({
       success: false,
       error: error.message || 'Error leaving team',
+    });
+  }
+};
+
+// Generate invite link
+export const generateInviteLink = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const { id } = req.params;
+    const { email, expiresInDays = 7 } = req.body;
+    
+    // Check if user is admin
+    const membership = await TeamMember.findOne({
+      teamId: id,
+      userId,
+      role: 'admin',
+      status: 'active',
+    });
+    
+    if (!membership) {
+      res.status(403).json({
+        success: false,
+        error: 'Only team admins can generate invite links',
+      });
+      return;
+    }
+    
+    const team = await Team.findById(id);
+    if (!team) {
+      res.status(404).json({
+        success: false,
+        error: 'Team not found',
+      });
+      return;
+    }
+    
+    // Generate unique invite code
+    const inviteCode = crypto.randomBytes(8).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+    
+    // Add invite link to team
+    team.inviteLinks = team.inviteLinks || [];
+    team.inviteLinks.push({
+      code: inviteCode,
+      expiresAt,
+      createdAt: new Date(),
+    });
+    await team.save();
+    
+    const inviteLink = `${process.env.FRONTEND_URL || 'http://localhost:8080'}/teams/join/${inviteCode}`;
+    
+    // Send email if provided
+    if (email) {
+      const inviter = await User.findById(userId).select('name email');
+      const emailSent = await sendTeamInvite(
+        email,
+        inviter?.name || 'Someone',
+        team.name,
+        inviteLink
+      );
+      if (!emailSent) {
+        console.warn(`⚠️  Failed to send invitation email to ${email}, but invite link was generated`);
+      }
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        inviteCode,
+        inviteLink,
+        expiresAt,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Error generating invite link',
+    });
+  }
+};
+
+// Join team by invite code
+export const joinByInviteCode = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const { code } = req.params;
+    
+    // Find team with valid invite code
+    const team = await Team.findOne({
+      'inviteLinks.code': code,
+      isActive: true,
+    });
+    
+    if (!team) {
+      res.status(404).json({
+        success: false,
+        error: 'Invalid or expired invite code',
+      });
+      return;
+    }
+    
+    // Check if invite code is still valid
+    const inviteLink = team.inviteLinks.find(
+      (link) => link.code === code && link.expiresAt > new Date()
+    );
+    
+    if (!inviteLink) {
+      res.status(400).json({
+        success: false,
+        error: 'Invite code has expired',
+      });
+      return;
+    }
+    
+    // Check if already a member
+    const existingMember = await TeamMember.findOne({
+      teamId: team._id,
+      userId,
+    });
+    
+    if (existingMember && existingMember.status === 'active') {
+      res.status(400).json({
+        success: false,
+        error: 'You are already a member of this team',
+      });
+      return;
+    }
+    
+    const status = team.settings.requireApproval ? 'pending' : 'active';
+    
+    if (existingMember) {
+      existingMember.status = status;
+      await existingMember.save();
+    } else {
+      await TeamMember.create({
+        teamId: team._id,
+        userId,
+        role: 'member',
+        status,
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        teamId: team._id,
+        teamName: team.name,
+        status,
+      },
+      message: status === 'pending'
+        ? 'Join request sent. Waiting for admin approval.'
+        : 'Successfully joined the team',
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Error joining team',
     });
   }
 };

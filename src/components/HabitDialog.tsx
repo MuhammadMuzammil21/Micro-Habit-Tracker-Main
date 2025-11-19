@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,9 +21,25 @@ interface HabitDialogProps {
 
 export const HabitDialog = ({ open, onOpenChange, habit, onSubmit }: HabitDialogProps) => {
   const { toast } = useToast();
-  const [title, setTitle] = useState(habit?.title || "");
-  const [description, setDescription] = useState(habit?.description || "");
-  const [frequency, setFrequency] = useState<"daily" | "weekly">(habit?.frequency || "daily");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [frequency, setFrequency] = useState<"daily" | "weekly">("daily");
+  const [reminderTime, setReminderTime] = useState("");
+
+  // Update form when habit changes
+  useEffect(() => {
+    if (habit) {
+      setTitle(habit.title || "");
+      setDescription(habit.description || "");
+      setFrequency(habit.frequency || "daily");
+      setReminderTime((habit as any).reminderTime || "");
+    } else {
+      setTitle("");
+      setDescription("");
+      setFrequency("daily");
+      setReminderTime("");
+    }
+  }, [habit, open]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,31 +54,14 @@ export const HabitDialog = ({ open, onOpenChange, habit, onSubmit }: HabitDialog
     }
 
     const habitData = {
-      id: habit?.id || Math.random().toString(36).substr(2, 9),
       title,
       description,
       frequency,
-      streak: habit ? undefined : 0,
-      completed: habit ? undefined : false,
-      teamMembers: habit ? undefined : 0,
+      reminderTime: reminderTime || undefined,
     };
 
     if (onSubmit) {
       onSubmit(habitData);
-    }
-
-    toast({
-      title: habit ? "Habit Updated" : "Habit Created",
-      description: habit ? "Your habit has been updated successfully." : "Your new habit has been created successfully.",
-    });
-
-    onOpenChange(false);
-    
-    // Reset form if creating new habit
-    if (!habit) {
-      setTitle("");
-      setDescription("");
-      setFrequency("daily");
     }
   };
 
@@ -111,6 +110,20 @@ export const HabitDialog = ({ open, onOpenChange, habit, onSubmit }: HabitDialog
                   <SelectItem value="weekly">Weekly</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="reminderTime">Reminder Time (Optional)</Label>
+              <Input
+                id="reminderTime"
+                type="time"
+                value={reminderTime}
+                onChange={(e) => setReminderTime(e.target.value)}
+                placeholder="e.g., 08:00"
+              />
+              <p className="text-xs text-muted-foreground">
+                Set a daily reminder time for this habit
+              </p>
             </div>
           </div>
 

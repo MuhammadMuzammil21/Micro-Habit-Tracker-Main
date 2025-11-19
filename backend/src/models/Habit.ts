@@ -8,6 +8,7 @@ export interface IHabit extends Document {
   isActive: boolean;
   teamId?: mongoose.Types.ObjectId;
   color?: string;
+  reminderTime?: string; // Format: "HH:mm" (e.g., "08:00", "09:30")
   createdAt: Date;
   updatedAt: Date;
 }
@@ -50,6 +51,10 @@ const HabitSchema = new Schema<IHabit>(
     color: {
       type: String,
       match: [/^#[0-9A-F]{6}$/i, 'Color must be a valid hex code'],
+    },
+    reminderTime: {
+      type: String,
+      match: [/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/, 'Reminder time must be in HH:mm format'],
     },
   },
   {

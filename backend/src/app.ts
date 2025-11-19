@@ -1,10 +1,13 @@
 import express from 'express';
+import { createServer } from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import dotenv from 'dotenv';
 import connectDB from './config/database';
 import { errorHandler, notFound } from './middleware/error.middleware';
+import { initializeSocket } from './config/socket';
+import { startReminderJob } from './jobs/reminder.job';
 
 // Load environment variables
 dotenv.config();
@@ -12,11 +15,22 @@ dotenv.config();
 // Import routes
 import authRoutes from './routes/auth.routes';
 import habitsRoutes from './routes/habits.routes';
+import teamsRoutes from './routes/teams.routes';
+import analyticsRoutes from './routes/analytics.routes';
+import notificationsRoutes from './routes/notifications.routes';
+import contactRoutes from './routes/contact.routes';
 
 const app = express();
+const httpServer = createServer(app);
 
 // Connect to database
 connectDB();
+
+// Initialize Socket.io
+initializeSocket(httpServer);
+
+// Start scheduled jobs
+startReminderJob();
 
 // Middleware
 app.use(helmet());
@@ -42,18 +56,10 @@ app.get('/health', (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/habits', habitsRoutes);
-app.use('/api/teams', (req, res) => {
-  res.status(501).json({ success: false, error: 'Not implemented yet' });
-});
-app.use('/api/analytics', (req, res) => {
-  res.status(501).json({ success: false, error: 'Not implemented yet' });
-});
-app.use('/api/notifications', (req, res) => {
-  res.status(501).json({ success: false, error: 'Not implemented yet' });
-});
-app.use('/api/contact', (req, res) => {
-  res.status(501).json({ success: false, error: 'Not implemented yet' });
-});
+app.use('/api/teams', teamsRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/notifications', notificationsRoutes);
+app.use('/api/contact', contactRoutes);
 
 // Error handling
 app.use(notFound);
@@ -61,8 +67,9 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
+  console.log(`Socket.io initialized and ready for connections`);
 });
 
 export default app;

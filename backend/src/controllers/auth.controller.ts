@@ -228,3 +228,34 @@ export const getCurrentUser = async (req: AuthenticatedRequest, res: Response): 
   }
 };
 
+export const updateProfile = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const { name, avatarUrl } = req.body;
+    
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { name, avatarUrl },
+      { new: true, runValidators: true }
+    ).select('-password');
+    
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        error: 'User not found',
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: user,
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Error updating profile',
+    });
+  }
+};
+

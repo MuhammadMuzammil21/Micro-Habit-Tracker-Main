@@ -1,5 +1,7 @@
+import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
-import { TrendingUp, Target, Award, Users } from "lucide-react";
+import { TrendingUp, Target, Award, Users, Loader2 } from "lucide-react";
+import api from "@/lib/api";
 
 interface StatCardProps {
   icon: React.ReactNode;
@@ -25,29 +27,49 @@ const StatCard = ({ icon, label, value, trend }: StatCardProps) => (
 );
 
 export const StatsOverview = () => {
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ['stats'],
+    queryFn: async () => {
+      const response = await api.get('/analytics/stats');
+      return response.data.data;
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <Card key={i} className="p-6 glass-card">
+            <div className="flex items-center justify-center h-20">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <StatCard
         icon={<Target className="h-5 w-5" />}
         label="Active Habits"
-        value={8}
-        trend="+2 this week"
+        value={stats?.activeHabits || 0}
       />
       <StatCard
         icon={<Award className="h-5 w-5" />}
         label="Completion Rate"
-        value="87%"
-        trend="+5%"
+        value={`${Math.round(stats?.completionRate || 0)}%`}
       />
       <StatCard
         icon={<TrendingUp className="h-5 w-5" />}
         label="Longest Streak"
-        value="23 days"
+        value={`${stats?.longestStreak || 0} days`}
       />
       <StatCard
         icon={<Users className="h-5 w-5" />}
-        label="Team Members"
-        value={5}
+        label="Total Completions"
+        value={stats?.totalCompletions || 0}
       />
     </div>
   );

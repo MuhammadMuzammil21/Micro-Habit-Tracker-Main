@@ -7,7 +7,8 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { Target, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { Logo } from "@/components/Logo";
 import { z } from "zod";
 
 const emailSchema = z.string().email("Please enter a valid email address");
@@ -116,12 +117,9 @@ const Auth = () => {
     <div className="min-h-screen bg-gradient-to-br from-background via-secondary/20 to-background dark:from-background dark:via-secondary/10 dark:to-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2 mb-4">
-            <div className="h-12 w-12 rounded-xl gradient-primary flex items-center justify-center">
-              <Target className="h-7 w-7 text-white" />
-            </div>
-            <h1 className="text-3xl font-bold">HabitLink</h1>
-          </Link>
+          <div className="inline-block mb-4">
+            <Logo size="lg" />
+          </div>
           <p className="text-muted-foreground">
             Build better habits together
           </p>

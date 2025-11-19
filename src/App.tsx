@@ -13,6 +13,8 @@ import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Index from "./pages/Index";
 import Teams from "./pages/Teams";
+import TeamDetail from "./pages/TeamDetail";
+import JoinTeam from "./pages/JoinTeam";
 import Analytics from "./pages/Analytics";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
@@ -38,6 +40,8 @@ const App = () => (
             <Route path="/terms" element={<Terms />} />
             <Route path="/dashboard" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/teams" element={<ProtectedRoute><Teams /></ProtectedRoute>} />
+            <Route path="/teams/:id" element={<ProtectedRoute><TeamDetail /></ProtectedRoute>} />
+            <Route path="/teams/join/:code" element={<ProtectedRoute><JoinTeam /></ProtectedRoute>} />
             <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />

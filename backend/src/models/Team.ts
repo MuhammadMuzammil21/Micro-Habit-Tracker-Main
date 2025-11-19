@@ -9,6 +9,11 @@ export interface ITeam extends Document {
     allowPublicJoin: boolean;
     requireApproval: boolean;
   };
+  inviteLinks: Array<{
+    code: string;
+    expiresAt: Date;
+    createdAt: Date;
+  }>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -46,6 +51,22 @@ const TeamSchema = new Schema<ITeam>(
         default: true,
       },
     },
+    inviteLinks: [
+      {
+        code: {
+          type: String,
+          required: true,
+        },
+        expiresAt: {
+          type: Date,
+          required: true,
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
   },
   {
     timestamps: true,

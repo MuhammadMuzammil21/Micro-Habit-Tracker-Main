@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Navbar } from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,9 +8,54 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bell, Lock, User, Palette, Globe } from "lucide-react";
+import { Bell, Lock, User, Palette, Globe, Loader2 } from "lucide-react";
+import api from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Settings() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+
+  // Fetch user data
+  const { data: userData, isLoading: userLoading } = useQuery({
+    queryKey: ['user', 'settings'],
+    queryFn: async () => {
+      const response = await api.get('/auth/me');
+      return response.data.data;
+    },
+    onSuccess: (data) => {
+      setName(data.name || "");
+      setEmail(data.email || "");
+    },
+  });
+
+  // Update profile mutation
+  const updateProfileMutation = useMutation({
+    mutationFn: (data: { name: string }) => api.put('/auth/profile', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user'] });
+      toast({
+        title: "Settings Updated",
+        description: "Your settings have been updated successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error?.response?.data?.error || "Failed to update settings",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleAccountSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateProfileMutation.mutate({ name });
+  };
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -40,36 +87,59 @@ export default function Settings() {
           </TabsList>
 
           <TabsContent value="account" className="space-y-6">
-            <Card className="p-6 glass-card">
-              <h3 className="text-xl font-semibold mb-4">Account Information</h3>
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="account-name">Full Name</Label>
-                    <Input id="account-name" defaultValue="John Doe" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="account-email">Email Address</Label>
-                    <Input id="account-email" type="email" defaultValue="john.doe@example.com" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="timezone">Timezone</Label>
-                  <Select defaultValue="utc">
-                    <SelectTrigger id="timezone">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-background border-border z-50">
-                      <SelectItem value="utc">UTC (Coordinated Universal Time)</SelectItem>
-                      <SelectItem value="est">EST (Eastern Standard Time)</SelectItem>
-                      <SelectItem value="pst">PST (Pacific Standard Time)</SelectItem>
-                      <SelectItem value="cst">CST (Central Standard Time)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button className="gradient-primary">Save Changes</Button>
+            {userLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
-            </Card>
+            ) : (
+              <Card className="p-6 glass-card">
+                <h3 className="text-xl font-semibold mb-4">Account Information</h3>
+                <form onSubmit={handleAccountSave} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="account-name">Full Name</Label>
+                      <Input 
+                        id="account-name" 
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        disabled={updateProfileMutation.isPending}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="account-email">Email Address</Label>
+                      <Input 
+                        id="account-email" 
+                        type="email" 
+                        value={email}
+                        disabled
+                        className="bg-muted"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="timezone">Timezone</Label>
+                    <Select defaultValue="utc" disabled>
+                      <SelectTrigger id="timezone">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background border-border z-50">
+                        <SelectItem value="utc">UTC (Coordinated Universal Time)</SelectItem>
+                        <SelectItem value="est">EST (Eastern Standard Time)</SelectItem>
+                        <SelectItem value="pst">PST (Pacific Standard Time)</SelectItem>
+                        <SelectItem value="cst">CST (Central Standard Time)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button 
+                    type="submit" 
+                    className="gradient-primary"
+                    disabled={updateProfileMutation.isPending}
+                  >
+                    {updateProfileMutation.isPending ? "Saving..." : "Save Changes"}
+                  </Button>
+                </form>
+              </Card>
+            )}
 
             <Card className="p-6 glass-card">
               <h3 className="text-xl font-semibold mb-4">Preferences</h3>

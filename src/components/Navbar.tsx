@@ -1,8 +1,12 @@
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import { Menu, Plus, BarChart3, Users, Settings, User, LogOut, Bell, HelpCircle } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import api from "@/lib/api";
+import { Logo } from "@/components/Logo";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +22,23 @@ export const Navbar = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { signOut, user } = useAuth();
+
+  // Fetch unread notification count
+  const { data: unreadCountData } = useQuery({
+    queryKey: ['notifications', 'unread-count'],
+    queryFn: async () => {
+      try {
+        const response = await api.get('/notifications/unread-count');
+        return response.data.data?.count || 0;
+      } catch (error) {
+        return 0;
+      }
+    },
+    enabled: !!user,
+    refetchInterval: 30000, // Refetch every 30 seconds
+  });
+
+  const unreadCount = unreadCountData || 0;
 
   const handleLogout = async () => {
     try {
@@ -40,12 +61,7 @@ export const Navbar = () => {
     <nav className="sticky top-0 z-50 w-full glass-navbar">
       <div className="container flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-8">
-          <Link to="/" className="flex items-center gap-2 group">
-            <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center group-hover:scale-105 transition-smooth">
-              <span className="text-white font-bold text-lg">H</span>
-            </div>
-            <span className="text-xl font-bold">HabitLink</span>
-          </Link>
+          <Logo size="md" />
 
           <div className="hidden md:flex items-center gap-1">
             <Button variant="ghost" size="sm" asChild>
@@ -70,12 +86,26 @@ export const Navbar = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <Button size="sm" className="gradient-primary shadow-soft gap-2 hover:opacity-90">
+          {/* <Button size="sm" className="gradient-primary shadow-soft gap-2 hover:opacity-90">
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">New Habit</span>
-          </Button>
+          </Button> */}
 
           <ThemeToggle />
+
+          <Link to="/notifications" className="relative">
+            <Button variant="ghost" size="icon" className="hover:bg-secondary/80">
+              <Bell className="h-4 w-4" />
+              {unreadCount > 0 && (
+                <Badge 
+                  variant="destructive" 
+                  className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+                >
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Badge>
+              )}
+            </Button>
+          </Link>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -111,15 +141,15 @@ export const Navbar = () => {
             <DropdownMenuTrigger asChild>
               <Avatar className="h-9 w-9 border-2 border-primary/20 ring-2 ring-primary/10 cursor-pointer hover:ring-primary/20 transition-smooth">
                 <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
-                  JD
+                  {user?.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : user?.email?.[0].toUpperCase() || 'U'}
                 </AvatarFallback>
               </Avatar>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 bg-background border-border z-50">
               <DropdownMenuLabel>
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium">John Doe</p>
-                  <p className="text-xs text-muted-foreground">john.doe@example.com</p>
+                  <p className="text-sm font-medium">{user?.name || 'User'}</p>
+                  <p className="text-xs text-muted-foreground">{user?.email || ''}</p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />

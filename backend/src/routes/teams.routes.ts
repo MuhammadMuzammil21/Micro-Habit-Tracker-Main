@@ -8,6 +8,8 @@ import {
   deleteTeam,
   joinTeam,
   leaveTeam,
+  generateInviteLink,
+  joinByInviteCode,
 } from '../controllers/teams.controller';
 import { authenticate } from '../middleware/auth.middleware';
 
@@ -30,5 +32,7 @@ router.put('/:id', createTeamValidation, updateTeam);
 router.delete('/:id', deleteTeam);
 router.post('/:id/join', joinTeam);
 router.post('/:id/leave', leaveTeam);
+router.post('/:id/invite', generateInviteLink);
+router.post('/invite/:code', joinByInviteCode);
 
 export default router;

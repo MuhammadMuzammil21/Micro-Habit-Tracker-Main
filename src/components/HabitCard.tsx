@@ -3,8 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check, Flame, Users, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import api from "@/lib/api";
 
 interface HabitCardProps {
   id: string;
@@ -30,19 +32,39 @@ export const HabitCard = ({
   onDelete,
 }: HabitCardProps) => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [completed, setCompleted] = useState(initialCompleted);
   const [isAnimating, setIsAnimating] = useState(false);
 
-  const handleToggle = () => {
-    if (!completed) {
+  // Complete habit mutation
+  const completeMutation = useMutation({
+    mutationFn: () => api.post(`/habits/${id}/complete`),
+    onSuccess: () => {
       setIsAnimating(true);
       setTimeout(() => setIsAnimating(false), 600);
+      setCompleted(true);
+      queryClient.invalidateQueries({ queryKey: ['habits'] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] });
+      // Team feed will update via Socket.io, but we can still invalidate as fallback
+      queryClient.invalidateQueries({ queryKey: ['team-feed'] });
       toast({
         title: "Habit Completed! 🎉",
         description: `Great job! You've completed "${title}".`,
       });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error?.response?.data?.error || "Failed to complete habit",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleToggle = () => {
+    if (!completed) {
+      completeMutation.mutate();
     }
-    setCompleted(!completed);
   };
 
   const handleDelete = () => {
