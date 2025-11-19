@@ -1,0 +1,65 @@
+import mongoose, { Schema, Document } from 'mongoose';
+
+export interface IHabit extends Document {
+  userId: mongoose.Types.ObjectId;
+  title: string;
+  description?: string;
+  frequency: 'daily' | 'weekly';
+  isActive: boolean;
+  teamId?: mongoose.Types.ObjectId;
+  color?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const HabitSchema = new Schema<IHabit>(
+  {
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: [true, 'User ID is required'],
+      index: true,
+    },
+    title: {
+      type: String,
+      required: [true, 'Habit title is required'],
+      trim: true,
+      maxlength: [100, 'Title cannot exceed 100 characters'],
+    },
+    description: {
+      type: String,
+      trim: true,
+      maxlength: [500, 'Description cannot exceed 500 characters'],
+    },
+    frequency: {
+      type: String,
+      enum: ['daily', 'weekly'],
+      required: [true, 'Frequency is required'],
+      default: 'daily',
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+    teamId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Team',
+      index: true,
+      sparse: true, // Only index if value exists
+    },
+    color: {
+      type: String,
+      match: [/^#[0-9A-F]{6}$/i, 'Color must be a valid hex code'],
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+// Indexes
+HabitSchema.index({ userId: 1, isActive: 1 });
+HabitSchema.index({ teamId: 1 });
+
+export default mongoose.model<IHabit>('Habit', HabitSchema);
+
